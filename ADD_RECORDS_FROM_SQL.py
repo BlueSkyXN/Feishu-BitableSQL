@@ -1,13 +1,14 @@
-import pymysql
 import requests
 import configparser
 import json
+import pandas as pd
+import pymysql
 from FeishuBitableAPI import FeishuBitableAPI
 
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None, field_file=None):
+def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
     if field_file is None:
@@ -17,40 +18,38 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
     config = configparser.ConfigParser()
     config.read(config_file, encoding='utf-8')
 
-    # 从配置文件获取tokens和app_token
+    # 提取tokens和app_token
     user_access_token = config.get('TOKEN', 'user_access_token')
 
-    # 从配置文件获取SQL查询语句
+    # 仅在未提供输入参数时从配置文件中读取
+    if app_token is None:
+        app_token = config.get('TOKEN', 'app_token')
+    if table_id is None:
+        table_id = config.get('ID', 'table_id')
+    if view_id is None:
+        view_id = config.get('ID', 'view_id')
+    if not page_token:
+        page_token = config.get('ADD_RECORDS', 'page_token', fallback=None)
+    if not page_size:
+        page_size = config.get('ADD_RECORDS', 'page_size', fallback=100)
+
+    # 从配置文件中读取数据库信息和SQL查询
+    db_info = {
+        'host': config.get('DB', 'host'),
+        'user': config.get('DB', 'user'),
+        'password': config.get('DB', 'password'),
+        'database': config.get('DB', 'database'),
+        'port': config.getint('DB', 'port')
+    }
     sql_query = config.get('SQL', 'sql_query')
 
-    # 建立数据库连接
-    db_host = config.get('DB', 'host')
-    db_user = config.get('DB', 'user')
-    db_password = config.get('DB', 'password')
-    db_database = config.get('DB', 'database')
-    db_port = config.get('DB', 'port')
-
-    print("Connecting to the database...")
-    conn = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_database, port=int(db_port))
-    cursor = conn.cursor()
-
-    # 执行SQL查询
-    print("Executing SQL query...")
-    cursor.execute(sql_query)
-    result = cursor.fetchall()
-
-    # 关闭数据库连接
-    cursor.close()
+    # 连接到数据库并执行SQL查询
+    conn = pymysql.connect(**db_info)
+    df = pd.read_sql_query(sql_query, conn)
     conn.close()
 
-    # 构建记录列表
-    records = []
-    for row in result:
-        record = {}
-        for i, value in enumerate(row):
-            field_name = cursor.description[i][0]
-            record[field_name] = value
-        records.append(record)
+    # 将DataFrame转换为字典，以便可以将其作为JSON发送
+    records = df.to_dict('records')
 
     # 设置请求头
     headers = {
@@ -60,7 +59,6 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
 
     # 检查记录数量，如果超过450则开始分片处理
     batch_size = 450  # 每次发送的记录数量
-    batch_records = []  # 初始化空的记录列表
     for i in range(0, len(records), batch_size):
         batch_records = records[i:i+batch_size]  # 获取当前批次的记录
         # 对于每个批次，都应该重构请求体
@@ -71,8 +69,7 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
         print(f"URL set to: {url}")
 
         # 发送请求并接收响应
-        print("Sending request...")
-        response = requests.post(url, headers=headers, json=batch_request_body)
+        response = requests.post(url, headers=headers,json=batch_request_body)
         print("Request sent. Response received.")
 
         # 检查响应状态
@@ -86,12 +83,12 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
                 if response_json.get("code") == 1254045:
                     print("检测到FieldNameNotFound错误，尝试创建不存在的字段...")
 
-                    #api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, csv_file=csv_file, config_file=config_file)
+                    #api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
 
                     print("重试添加记录...")
                     response = requests.post(url, headers=headers, json=batch_request_body)
                     response_json = response.json()
-
+                    
                     if response.status_code != 200 or response_json.get('code') != 0:
                         print(f"重试失败，无法添加记录。错误信息: {response.json()}")
                         response.raise_for_status()
@@ -104,11 +101,13 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
     ENABLE_ADD_RECORDS = True
     
     if ENABLE_ADD_RECORDS:
+        if field_file is None:
+           field_file = 'feishu-field.ini'
         # 更新field配置文件
         field_config = configparser.ConfigParser()
         field_config.read('feishu-field.ini', encoding='utf-8')
         if "ADD_RECORDS_FROM_SQL" not in field_config.sections():
-            field_config.add_section("ADD_RECORDS_FROM_CSV")
+            field_config.add_section("ADD_RECORDS_FROM_SQL")
         field_config.set("ADD_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
         field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
@@ -116,4 +115,4 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
             print("Request body and response body saved to feishu-field.ini.")
 
 if __name__ == "__main__":
-    upload_records_from_sql()
+    ADD_RECORDS_FROM_SQL()
