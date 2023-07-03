@@ -8,9 +8,6 @@ from FeishuBitableAPI import FeishuBitableAPI
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def convert_timestamp_to_str(timestamp):
-    return timestamp.strftime('%Y-%m-%d %H:%M:%S')
-
 def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
@@ -65,6 +62,9 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     total_records = len(records)
     print(f"Total records to be added: {total_records}")
 
+    # 定义空的 batch_records 列表
+    batch_records = []
+
     # 初始化 response 变量为 None
     response = None
 
@@ -75,7 +75,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         print(f"Processing records {batch_start} to {batch_end}...")
 
         # 对于每个批次，都应该重构请求体
-        batch_request_body = {'records': [{key: convert_timestamp_to_str(value) if isinstance(value, pd.Timestamp) else value for key, value in record.items()} for record in batch_records]}
+        batch_request_body = {'records': batch_records}
 
         # 构建请求URL
         url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
