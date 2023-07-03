@@ -44,7 +44,9 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     sql_query = config.get('SQL', 'sql_query')
 
     # 连接到数据库并执行SQL查询
+    print("Connecting to the database...")
     conn = pymysql.connect(**db_info)
+    print("Connected to the database.")
     df = pd.read_sql_query(sql_query, conn)
     conn.close()
 
@@ -59,8 +61,15 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
 
     # 检查记录数量，如果超过450则开始分片处理
     batch_size = 450  # 每次发送的记录数量
-    for i in range(0, len(records), batch_size):
+    total_records = len(records)
+    print(f"Total records to be added: {total_records}")
+
+    for i in range(0, total_records, batch_size):
         batch_records = records[i:i+batch_size]  # 获取当前批次的记录
+        batch_start = i + 1
+        batch_end = min(i + batch_size, total_records)
+        print(f"Processing records {batch_start} to {batch_end}...")
+
         # 对于每个批次，都应该重构请求体
         batch_request_body = {'records': batch_records}
 
@@ -69,6 +78,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         print(f"URL set to: {url}")
 
         # 发送请求并接收响应
+        print("Sending request...")
         response = requests.post(url, headers=headers,json=batch_request_body)
         print("Request sent. Response received.")
 
@@ -98,7 +108,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = False
+    ENABLE_ADD_RECORDS = True
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
