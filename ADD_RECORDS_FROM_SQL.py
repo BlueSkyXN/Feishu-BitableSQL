@@ -1,5 +1,5 @@
-import requests
 import configparser
+import requests
 import json
 import pandas as pd
 import pymysql
@@ -98,7 +98,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = True
+    ENABLE_ADD_RECORDS = False
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
@@ -113,6 +113,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
+
 
 if __name__ == "__main__":
     ADD_RECORDS_FROM_SQL()
