@@ -59,25 +59,27 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
 
     print(f"Total records to be added: {len(records)}")
 
-
-    # 定义空的 batch_records 列表
-    batch_records = []
-
     # 初始化 response 变量为 None
     response = None
 
     # 检查记录数量，如果超过450则开始分片处理
     batch_size = 450  # 每次发送的记录数量
+    batch_records = []  # 空的 batch_records 列表
+
     for i in range(0, len(records), batch_size):
-        batch_records = records[i:i+batch_size]  # 获取当前批次的记录
+        current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
+        batch_start = i + 1
+        batch_end = min(i + batch_size, len(records))
+        print(f"Processing records {batch_start} to {batch_end}...")
+
         # 对于每个批次，都应该重构请求体
-        batch_request_body = {'records': batch_records}
+        batch_request_body = {'records': current_batch_records}
+        batch_records.extend(current_batch_records)  # 将当前批次的记录添加到 batch_records
 
         # 构建请求URL
         url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
         print(f"URL set to: {url}")
 
-        print(f"Processing records {i+1} to {min(i+batch_size, len(records))}...")
         print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
 
         # 发送请求并接收响应
