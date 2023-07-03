@@ -44,9 +44,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     sql_query = config.get('SQL', 'sql_query')
 
     # 连接到数据库并执行SQL查询
-    print("Connecting to the database...")
     conn = pymysql.connect(**db_info)
-    print("Connected to the database.")
     df = pd.read_sql_query(sql_query, conn)
     conn.close()
 
@@ -64,6 +62,12 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     total_records = len(records)
     print(f"Total records to be added: {total_records}")
 
+    # 定义空的 batch_records 列表
+    batch_records = []
+
+    # 初始化 response 变量为 None
+    response = None
+
     for i in range(0, total_records, batch_size):
         batch_records = records[i:i+batch_size]  # 获取当前批次的记录
         batch_start = i + 1
@@ -78,7 +82,6 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         print(f"URL set to: {url}")
 
         # 发送请求并接收响应
-        print("Sending request...")
         response = requests.post(url, headers=headers,json=batch_request_body)
         print("Request sent. Response received.")
 
@@ -119,7 +122,11 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         if "ADD_RECORDS_FROM_SQL" not in field_config.sections():
             field_config.add_section("ADD_RECORDS_FROM_SQL")
         field_config.set("ADD_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
-        field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
+        
+        # 只有在 response 不为 None 时才更新 response_body
+        if response is not None:
+            field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
+        
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
