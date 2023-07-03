@@ -28,10 +28,12 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
     db_database = config.get('DB', 'database')
     db_port = config.get('DB', 'port')
 
+    print("Connecting to the database...")
     conn = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_database, port=int(db_port))
     cursor = conn.cursor()
 
     # 执行SQL查询
+    print("Executing SQL query...")
     cursor.execute(sql_query)
     result = cursor.fetchall()
 
@@ -66,6 +68,7 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
         print(f"URL set to: {url}")
 
         # 发送请求并接收响应
+        print("Sending request...")
         response = requests.post(url, headers=headers, json=batch_request_body)
         print("Request sent. Response received.")
 
@@ -95,7 +98,7 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = False
+    ENABLE_ADD_RECORDS = True
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
