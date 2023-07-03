@@ -8,7 +8,7 @@ from FeishuBitableAPI import FeishuBitableAPI
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, KEY=None, config_file=None, field_file=None):
+def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
     if field_file is None:
@@ -29,11 +29,9 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_to
     if view_id is None:
         view_id = config.get('ID', 'view_id')
     if not page_token:
-        page_token = config.get('UPDATE_RECORDS', 'page_token', fallback=None)
+        page_token = config.get('ADD_RECORDS', 'page_token', fallback=None)
     if not page_size:
-        page_size = config.get('UPDATE_RECORDS', 'page_size', fallback=100)
-    if not KEY:
-        page_size = config.get('UPDATE_RECORDS', 'KEY', fallback="ID")
+        page_size = config.get('ADD_RECORDS', 'page_size', fallback=100)
 
     # 从配置文件中读取数据库信息和SQL查询
     db_info = {
@@ -64,9 +62,12 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_to
     # 初始化 response 变量为 None
     response = None
 
-    # 检查记录数量，如果超过500则开始分片处理
-    batch_size = 500  # 每次发送的记录数量
+    # 检查记录数量，如果超过450则开始分片处理
+    batch_size = 450  # 每次发送的记录数量
     batch_records = []  # 空的 batch_records 列表
+
+    # 获取飞书表格中的记录
+    feishu_records = LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
 
     for i in range(0, len(records), batch_size):
         current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
@@ -75,8 +76,21 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_to
         print(f"Processing records {batch_start} to {batch_end}...")
 
         # 对于每个批次，都应该重构请求体
-        batch_request_body = {'records': [{'fields': record, 'record_id': record['record_id']} for record in current_batch_records]}
-        batch_records.extend(current_batch_records)  # 将当前批次的记录添加到 batch_records
+        batch_request_body = {'records': []}
+
+        for record in current_batch_records:
+            # 查找飞书表格中的对应记录
+            feishu_record = next((item for item in feishu_records['data']['items'] if item['fields']['KEY'] == record['KEY']), None)
+
+            # 如果飞书表格中没有这条记录，或者记录的内容有差异，就将这条记录添加到更新列表中
+            if feishu_record is None or feishu_record['fields'] != record:
+                batch_request_body['records'].append({'fields': record, 'record_id': feishu_record['record_id'] if feishu_record else None})
+
+        batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
+
+        # 如果没有需要更新的记录，就跳过这个批次
+        if not batch_request_body['records']:
+            continue
 
         # 构建请求URL
         url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_update"
