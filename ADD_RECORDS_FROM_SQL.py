@@ -99,7 +99,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
                 if response_json.get("code") == 1254045:
                     print("检测到FieldNameNotFound错误，尝试创建不存在的字段...")
 
-                    api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
+                    api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
 
                     print("重试添加记录...")
                     response = requests.post(url, headers=headers, json=batch_request_body)
