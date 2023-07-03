@@ -161,3 +161,4 @@ cython_debug/
 input.csv
 feishu-config.ini
 BitableSQL-config.ini
+feishu-field.ini

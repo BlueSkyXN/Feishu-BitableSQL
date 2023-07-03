@@ -7,9 +7,11 @@ from FeishuBitableAPI import FeishuBitableAPI
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None):
+def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
+    if field_file is None:
+        field_file = 'feishu-field.ini'
 
     # 读取配置文件
     config = configparser.ConfigParser()
@@ -83,7 +85,7 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
                 if response_json.get("code") == 1254045:
                     print("检测到FieldNameNotFound错误，尝试创建不存在的字段...")
 
-                    api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, csv_file=csv_file, config_file=config_file)
+                    #api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, csv_file=csv_file, config_file=config_file)
 
                     print("重试添加记录...")
                     response = requests.post(url, headers=headers, json=batch_request_body)
