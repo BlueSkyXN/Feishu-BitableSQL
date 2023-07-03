@@ -1,5 +1,5 @@
-import configparser
 import requests
+import configparser
 import json
 import pandas as pd
 import pymysql
@@ -57,10 +57,8 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         "Content-Type": "application/json; charset=utf-8"
     }
 
-    # 检查记录数量，如果超过450则开始分片处理
-    batch_size = 450  # 每次发送的记录数量
-    total_records = len(records)
-    print(f"Total records to be added: {total_records}")
+    print(f"Total records to be added: {len(records)}")
+
 
     # 定义空的 batch_records 列表
     batch_records = []
@@ -68,12 +66,10 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     # 初始化 response 变量为 None
     response = None
 
-    for i in range(0, total_records, batch_size):
+    # 检查记录数量，如果超过450则开始分片处理
+    batch_size = 450  # 每次发送的记录数量
+    for i in range(0, len(records), batch_size):
         batch_records = records[i:i+batch_size]  # 获取当前批次的记录
-        batch_start = i + 1
-        batch_end = min(i + batch_size, total_records)
-        print(f"Processing records {batch_start} to {batch_end}...")
-
         # 对于每个批次，都应该重构请求体
         batch_request_body = {'records': batch_records}
 
@@ -81,9 +77,14 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
         print(f"URL set to: {url}")
 
+        print(f"Processing records {i+1} to {min(i+batch_size, len(records))}...")
+        print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
+
         # 发送请求并接收响应
-        response = requests.post(url, headers=headers,json=batch_request_body)
+        response = requests.post(url, headers=headers, json=batch_request_body)
         print("Request sent. Response received.")
+        print(response.text)
+        print("Request ok.")
 
         # 检查响应状态
         if response.status_code == 200:
@@ -96,7 +97,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
                 if response_json.get("code") == 1254045:
                     print("检测到FieldNameNotFound错误，尝试创建不存在的字段...")
 
-                    #api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
+                    api.CHECK_FIELD_EXIST(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
 
                     print("重试添加记录...")
                     response = requests.post(url, headers=headers, json=batch_request_body)
@@ -111,7 +112,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = True
+    ENABLE_ADD_RECORDS = False
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
@@ -122,15 +123,10 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         if "ADD_RECORDS_FROM_SQL" not in field_config.sections():
             field_config.add_section("ADD_RECORDS_FROM_SQL")
         field_config.set("ADD_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
-        
-        # 只有在 response 不为 None 时才更新 response_body
-        if response is not None:
-            field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
-        
+        field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
-
 
 if __name__ == "__main__":
     ADD_RECORDS_FROM_SQL()
