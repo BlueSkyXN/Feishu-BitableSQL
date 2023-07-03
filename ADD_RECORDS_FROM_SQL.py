@@ -60,6 +60,7 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
 
     # 检查记录数量，如果超过450则开始分片处理
     batch_size = 450  # 每次发送的记录数量
+    batch_records = []  # 初始化空的记录列表
     for i in range(0, len(records), batch_size):
         batch_records = records[i:i+batch_size]  # 获取当前批次的记录
         # 对于每个批次，都应该重构请求体
@@ -103,15 +104,13 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
     ENABLE_ADD_RECORDS = True
     
     if ENABLE_ADD_RECORDS:
-        if field_file is None:
-           field_file = 'feishu-field.ini'
         # 更新field配置文件
         field_config = configparser.ConfigParser()
         field_config.read('feishu-field.ini', encoding='utf-8')
-        if "ADD_RECORDS_FROM_CSV" not in field_config.sections():
+        if "ADD_RECORDS_FROM_SQL" not in field_config.sections():
             field_config.add_section("ADD_RECORDS_FROM_CSV")
-        field_config.set("ADD_RECORDS_FROM_CSV", "request_body", json.dumps({"records": batch_records}))
-        field_config.set("ADD_RECORDS_FROM_CSV", "response_body", response.text)
+        field_config.set("ADD_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
+        field_config.set("ADD_RECORDS_FROM_SQL", "response_body", response.text)
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
