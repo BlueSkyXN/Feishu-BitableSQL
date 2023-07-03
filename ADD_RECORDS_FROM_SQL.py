@@ -26,8 +26,9 @@ def upload_records_from_sql(app_token=None, table_id=None, view_id=None, page_to
     db_user = config.get('DB', 'user')
     db_password = config.get('DB', 'password')
     db_database = config.get('DB', 'database')
+    db_port = config.get('DB', 'port')
 
-    conn = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_database)
+    conn = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_database, port=int(db_port))
     cursor = conn.cursor()
 
     # 执行SQL查询
