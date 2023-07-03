@@ -49,7 +49,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     conn.close()
 
     # 将DataFrame转换为字典，以便可以将其作为JSON发送
-    records = df.to_dict('records')
+    records = df.astype(str).to_dict('records')
 
     # 设置请求头
     headers = {
@@ -73,7 +73,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         print(f"Processing records {batch_start} to {batch_end}...")
 
         # 对于每个批次，都应该重构请求体
-        batch_request_body = {'records': current_batch_records}
+        batch_request_body = {'records': [{'fields': record} for record in current_batch_records]}
         batch_records.extend(current_batch_records)  # 将当前批次的记录添加到 batch_records
 
         # 构建请求URL
@@ -114,7 +114,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = False
+    ENABLE_ADD_RECORDS = True
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
