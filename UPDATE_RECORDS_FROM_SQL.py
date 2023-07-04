@@ -83,6 +83,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
 
             # 对于每个批次，都应该重构请求体
             batch_request_body = {'records': []}
+            batch_records = []  # 清空 batch_records
 
             for record in current_batch_records:
                 # 查找飞书表格中的对应记录
