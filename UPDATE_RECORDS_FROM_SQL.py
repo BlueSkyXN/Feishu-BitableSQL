@@ -91,7 +91,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
             batch_start = i + 1
             batch_end = min(i + batch_size, len(records))
-            print(f"Processing records {batch_start} to {batch_end}...")
+            #print(f"Processing records {batch_start} to {batch_end}...")
 
             # 对于每个批次，都应该重构请求体
             batch_request_body = {'records': []}
@@ -116,14 +116,16 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
             # 如果没有需要更新的记录，就跳过这个批次
             if not batch_request_body['records']:
-                print(f"No updates needed for records {batch_start} to {batch_end}. Skipping this batch.")
+                #print(f"No updates needed for records {batch_start} to {batch_end}. Skipping this batch.")
                 continue
 
             # 如果没有需要更新的记录，就跳过发送更新请求的步骤
             if not batch_records:
                 print("No records to update. Skipping update request.")
                 continue
-
+            
+            print(f"Processing records {batch_start} to {batch_end}...")
+            
             # 构建请求URL
             url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_update"
             print(f"URL set to: {url}")
