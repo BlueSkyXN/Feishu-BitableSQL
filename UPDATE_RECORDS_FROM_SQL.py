@@ -115,8 +115,9 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             # 发送请求并接收响应
             response = requests.post(url, headers=headers, json=batch_request_body)
             print("Request sent. Response received.")
-            print(response.text)
-            print("Request ok.")
+            if response is not None:
+               print(response.text)
+               print("Request ok.")
 
             # 检查响应状态
             if response.status_code == 200:
@@ -145,7 +146,10 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
         if "UPDATE_RECORDS_FROM_SQL" not in field_config.sections():
             field_config.add_section("UPDATE_RECORDS_FROM_SQL")
         field_config.set("UPDATE_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
-        field_config.set("UPDATE_RECORDS_FROM_SQL", "response_body", response.text)
+        if response is not None:
+            field_config.set("UPDATE_RECORDS_FROM_SQL", "response_body", response.text)
+        else:
+            field_config.set("UPDATE_RECORDS_FROM_SQL", "response_body", "No response received from the server.")
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
