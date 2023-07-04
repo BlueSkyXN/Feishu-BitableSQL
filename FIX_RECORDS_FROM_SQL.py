@@ -68,19 +68,19 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
     batch_records = []  # 空的 batch_records 列表
 
     print("尝试创建不存在的字段...")
-    api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+    api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=None, page_size=page_size, config_file=config_file)
     print("修复完成...")
     
     # 获取飞书表格中的记录
     page_token = None
     while True:
-        feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+        feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=None, page_size=batch_size, config_file=config_file)
         print(feishu_records)
         if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
             print("No records retrieved from Feishu table. Adding records from SQL...")
-            ADD_RECORDS_FROM_SQL()
+            ADD_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=None, page_size=page_size, config_file=config_file, field_file=field_file)
             print("Records added. Retrying...")
-            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=None, page_size=batch_size, config_file=config_file)
 
         page_token = feishu_records.get('data', {}).get('page_token')
 
