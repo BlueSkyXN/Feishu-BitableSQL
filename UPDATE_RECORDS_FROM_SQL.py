@@ -8,7 +8,7 @@ from FeishuBitableAPI import FeishuBitableAPI
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field='ID', page_token=None, page_size=None,config_file=None, field_file=None):
+def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None,config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
     if field_file is None:
@@ -27,9 +27,12 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field='ID', page_
     if table_id is None:
         table_id = config.get('ID', 'table_id')
     if not page_token:
-        page_token = config.get('ADD_RECORDS', 'page_token', fallback=None)
+        page_token = config.get('UPDATE_RECORDS', 'page_token', fallback=None)
     if not page_size:
-        page_size = config.get('ADD_RECORDS', 'page_size', fallback=100)
+        page_size = config.get('UPDATE_RECORDS', 'page_size', fallback=100)
+    if not key_field:
+        key_field = config.get('UPDATE_RECORDS', 'KEY', fallback='ID')
+        
     # 从配置文件中读取数据库信息和SQL查询
     db_info = {
         'host': config.get('DB', 'host'),
@@ -62,6 +65,9 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field='ID', page_
     # 检查记录数量，如果超过500则开始分片处理
     batch_size = 500  # 每次发送的记录数量
     batch_records = []  # 空的 batch_records 列表
+    print("尝试创建不存在的字段...")
+    api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+    print("修复完成...")
 
     # 获取飞书表格中的记录
     page_token = None
@@ -102,8 +108,8 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field='ID', page_
             # 发送请求并接收响应
             response = requests.post(url, headers=headers, json=batch_request_body)
             print("Request sent. Response received.")
-            print(response.text)
-            print("Request ok.")
+            #print(response.text)
+            #print("Request ok.")
 
             # 检查响应状态
             if response.status_code == 200:

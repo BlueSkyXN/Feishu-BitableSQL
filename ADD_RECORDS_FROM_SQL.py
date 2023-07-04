@@ -85,8 +85,8 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         # 发送请求并接收响应
         response = requests.post(url, headers=headers, json=batch_request_body)
         print("Request sent. Response received.")
-        print(response.text)
-        print("Request ok.")
+        #print(response.text)
+        #print("Request ok.")
 
         # 检查响应状态
         if response.status_code == 200:
@@ -114,7 +114,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
-    ENABLE_ADD_RECORDS = True
+    ENABLE_ADD_RECORDS = False
     
     if ENABLE_ADD_RECORDS:
         if field_file is None:
