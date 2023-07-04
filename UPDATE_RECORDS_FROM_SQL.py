@@ -8,7 +8,7 @@ from FeishuBitableAPI import FeishuBitableAPI
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None,config_file=None, field_file=None):
+def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
     if field_file is None:
@@ -32,7 +32,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
         page_size = config.get('UPDATE_RECORDS', 'page_size', fallback=100)
     if not key_field:
         key_field = config.get('UPDATE_RECORDS', 'KEY', fallback='ID')
-        
+
     # 从配置文件中读取数据库信息和SQL查询
     db_info = {
         'host': config.get('DB', 'host'),
@@ -90,10 +90,11 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
 
                 # 如果飞书表格中没有这条记录，或者记录的内容有差异，就将这条记录添加到更新列表中
                 if feishu_record is None or feishu_record['fields'] != record:
-                    batch_request_body['records'].append({'fields': record, 'record_id': feishu_record['record_id'] if feishu_record else None})
+                    # 更新记录ID
+                    record_id = feishu_record['record_id'] if feishu_record else None
+                    batch_request_body['records'].append({'fields': record, 'record_id': record_id})
 
             batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
-
 
             # 如果没有需要更新的记录，就跳过这个批次
             if not batch_request_body['records']:
@@ -108,8 +109,8 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             # 发送请求并接收响应
             response = requests.post(url, headers=headers, json=batch_request_body)
             print("Request sent. Response received.")
-            #print(response.text)
-            #print("Request ok.")
+            print(response.text)
+            print("Request ok.")
 
             # 检查响应状态
             if response.status_code == 200:
@@ -128,7 +129,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             break
 
     ENABLE_UPDATE_RECORDS = True
-    
+
     if ENABLE_UPDATE_RECORDS:
         if field_file is None:
            field_file = 'feishu-field.ini'

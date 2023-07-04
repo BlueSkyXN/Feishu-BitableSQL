@@ -80,7 +80,7 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
         url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
         print(f"URL set to: {url}")
 
-        print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
+        #print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
 
         # 发送请求并接收响应
         response = requests.post(url, headers=headers, json=batch_request_body)
