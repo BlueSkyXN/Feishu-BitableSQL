@@ -1,5 +1,5 @@
 import requests
-import configparser
+import configparser 
 import json
 import pandas as pd
 import pymysql
@@ -46,25 +46,36 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
     conn = pymysql.connect(**db_info)
     cursor = conn.cursor()
 
+    # 获取数据表的所有字段
+    fields = pd.read_sql('DESC wp_posts', conn)
+    fields = list(fields['Field'])
+
     # 获取飞书表格中的所有记录
-    feishu_records_set = set()
+    feishu_records_dict = {}
     page_token = None
     while True:
         feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
         page_token = feishu_records.get('data', {}).get('page_token')
-        feishu_records_set.update(item['fields'].get(key_field) for item in feishu_records['data']['items'])
+        for item in feishu_records['data']['items']:
+            feishu_records_dict[item['fields'].get(key_field)] = item['fields']
         if not feishu_records.get('data', {}).get('has_more'):
             break
 
-    # 检查飞书中的记录是否在数据库中存在，如果不存在，就将这些记录添加到数据库中
-    for record in feishu_records_set:
-        sql_query = f"SELECT * FROM wp_posts WHERE {key_field} = '{record}'"
+    # 检查飞书中的记录是否在数据库中存在,如果不存在,就将这些记录添加到数据库中
+    for key, value in feishu_records_dict.items():
+        sql_query = f"SELECT * FROM wp_posts WHERE {key_field} = '{key}'"
         cursor.execute(sql_query)
         result = cursor.fetchone()
         if result is None:
-            # 如果数据库中没有这条记录，就添加整条记录
-            # 注意：这里假设你的表格有一个名为 'field1' 的字段，你需要根据你的实际情况修改这个字段名
-            sql_insert = f"INSERT INTO wp_posts ({key_field}) VALUES ('{record}')"
+            # 如果数据库中没有这条记录,就添加整条记录
+            # 注意:这里假设你的表格有一个名为 'field1' 的字段,你需要根据你的实际情况修改这个字段名
+            values = []
+            for field in fields: 
+                if field in value:
+                    values.append(f"'{value[field]}'")
+                else:
+                    values.append('NULL')
+            sql_insert = f"INSERT INTO wp_posts ({', '.join(fields)}) VALUES ({', '.join(values)})"
             cursor.execute(sql_insert)
             conn.commit()
 
