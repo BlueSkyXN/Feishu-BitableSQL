@@ -4,6 +4,8 @@ import json
 import pandas as pd
 import pymysql
 from FeishuBitableAPI import FeishuBitableAPI
+from ADD_RECORDS_FROM_SQL import ADD_RECORDS_FROM_SQL
+from FIX_RECORDS_FROM_SQL import FIX_RECORDS_FROM_SQL
 
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
@@ -65,6 +67,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
     # 检查记录数量，如果超过500则开始分片处理
     batch_size = 500  # 每次发送的记录数量
     batch_records = []  # 空的 batch_records 列表
+    
     print("尝试创建不存在的字段...")
     api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
     print("修复完成...")
@@ -73,6 +76,14 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
     page_token = None
     while True:
         feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+        print(feishu_records)
+        if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
+            print("No records retrieved from Feishu table. Adding records from SQL...")
+            ADD_RECORDS_FROM_SQL()
+            print("Records added. Retrying...")
+            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+
+
         page_token = feishu_records.get('data', {}).get('page_token')
 
         for i in range(0, len(records), batch_size):
@@ -141,6 +152,8 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
         if not feishu_records.get('data', {}).get('has_more'):
             break
 
+    FIX_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, key_field=key_field, page_token=None, page_size=page_size, config_file=config_file, field_file=field_file)
+
     ENABLE_UPDATE_RECORDS = True
 
     if ENABLE_UPDATE_RECORDS:
@@ -159,6 +172,7 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
+
 
 if __name__ == "__main__":
     UPDATE_RECORDS_FROM_SQL()

@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import pymysql
 from FeishuBitableAPI import FeishuBitableAPI
+from ADD_RECORDS_FROM_SQL import ADD_RECORDS_FROM_SQL
 
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
@@ -59,20 +60,28 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
 
     print(f"Total records to be updated: {len(records)}")
 
-    # 初始化 response 变量为 None
+        # 初始化 response 变量为 None
     response = None
 
     # 检查记录数量，如果超过500则开始分片处理
     batch_size = 500  # 每次发送的记录数量
     batch_records = []  # 空的 batch_records 列表
+
     print("尝试创建不存在的字段...")
     api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
     print("修复完成...")
-
+    
     # 获取飞书表格中的记录
     page_token = None
     while True:
         feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+        print(feishu_records)
+        if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
+            print("No records retrieved from Feishu table. Adding records from SQL...")
+            ADD_RECORDS_FROM_SQL()
+            print("Records added. Retrying...")
+            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+
         page_token = feishu_records.get('data', {}).get('page_token')
 
         for i in range(0, len(records), batch_size):
@@ -91,29 +100,17 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
 
                 if feishu_record is None:
                     # 如果飞书表格中没有这条记录，就添加整条记录
-                    #batch_request_body['records'].append({'fields': record, 'record_id': None})
-                    continue
-                else:
-                    # 只比较数据库和飞书表格中共同存在的字段的值
-                    common_fields = set(record.keys()) & set(feishu_record['fields'].keys())
-                    if any(record[field] != feishu_record['fields'][field] for field in common_fields):
-                        # 如果有任何一个共同存在的字段的值不匹配，就添加这条记录
-                        batch_request_body['records'].append({'fields': record, 'record_id': feishu_record['record_id']})
+                    batch_request_body['records'].append({'fields': record})
 
-            
             batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
-            # 如果没有需要更新的记录，就跳过这个批次
-            if not batch_request_body['records']:
-                print(f"No updates needed for records {batch_start} to {batch_end}. Skipping this batch.")
-                continue
 
-            # 如果没有需要更新的记录，就跳过发送更新请求的步骤
-            if not batch_records:
-                print("No records to update. Skipping update request.")
+            # 如果没有需要添加的记录，就跳过这个批次
+            if not batch_request_body['records']:
+                print(f"No new records for {batch_start} to {batch_end}. Skipping this batch.")
                 continue
 
             # 构建请求URL
-            url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_update"
+            url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
             print(f"URL set to: {url}")
 
             print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
@@ -122,19 +119,19 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
             response = requests.post(url, headers=headers, json=batch_request_body)
             print("Request sent. Response received.")
             if response is not None:
-               print(response.text)
-               print("Request ok.")
+                print(response.text)
+                print("Request ok.")
 
             # 检查响应状态
             if response.status_code == 200:
                 response_json = response.json()
                 if response_json.get('code') == 0:
-                    print(f"Successfully updated table records. Response status code: {response.status_code}, Response code: {response_json.get('code')}")
+                    print(f"Successfully added new records. Response status code: {response.status_code}, Response code: {response_json.get('code')}")
                 else:
-                    print(f"Error in updating table records. Response status code: {response.status_code}, Response code: {response_json.get('code')}")
+                    print(f"Error in adding new records. Response status code: {response.status_code}, Response code: {response_json.get('code')}")
                     response.raise_for_status()
             else:
-                print(f"Error in updating table records. Response status code: {response.status_code}")
+                print(f"Error in adding new records. Response status code: {response.status_code}")
                 response.raise_for_status()
 
         # 如果没有更多的飞书表格记录，就结束循环
@@ -149,13 +146,13 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
         # 更新field配置文件
         field_config = configparser.ConfigParser()
         field_config.read('feishu-field.ini', encoding='utf-8')
-        if "UPDATE_RECORDS_FROM_SQL" not in field_config.sections():
-            field_config.add_section("UPDATE_RECORDS_FROM_SQL")
-        field_config.set("UPDATE_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
+        if "FIX_RECORDS_FROM_SQL" not in field_config.sections():
+            field_config.add_section("FIX_RECORDS_FROM_SQL")
+        field_config.set("FIX_RECORDS_FROM_SQL", "request_body", json.dumps({"records": batch_records}))
         if response is not None:
-            field_config.set("UPDATE_RECORDS_FROM_SQL", "response_body", response.text)
+            field_config.set("FIX_RECORDS_FROM_SQL", "response_body", response.text)
         else:
-            field_config.set("UPDATE_RECORDS_FROM_SQL", "response_body", "No response received from the server.")
+            field_config.set("FIX_RECORDS_FROM_SQL", "response_body", "No response received from the server.")
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
