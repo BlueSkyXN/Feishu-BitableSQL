@@ -75,16 +75,17 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
     # 获取飞书表格中的记录
     page_token = None
     while True:
-        feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=None, page_size=batch_size, config_file=config_file)
-        print(feishu_records)
+        feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+        #print(feishu_records)
         if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
             print("No records retrieved from Feishu table. Adding records from SQL...")
-            ADD_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=None, page_size=page_size, config_file=config_file, field_file=field_file)
+            ADD_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=batch_size, config_file=config_file, field_file=field_file)
             print("Records added. Retrying...")
-            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=None, page_size=batch_size, config_file=config_file)
+            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
 
 
         page_token = feishu_records.get('data', {}).get('page_token')
+
 
         for i in range(0, len(records), batch_size):
             current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
@@ -127,14 +128,15 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
             url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_update"
             print(f"URL set to: {url}")
 
-            print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
+            #print(f"Request body: {json.dumps(batch_request_body, indent=2)}")
 
             # 发送请求并接收响应
             response = requests.post(url, headers=headers, json=batch_request_body)
             print("Request sent. Response received.")
             if response is not None:
-               print(response.text)
-               print("Request ok.")
+               #print(response.text)
+               #print("Request ok.")
+               continue
 
             # 检查响应状态
             if response.status_code == 200:
@@ -152,9 +154,9 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
         if not feishu_records.get('data', {}).get('has_more'):
             break
 
-    FIX_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, key_field=key_field, page_token=None, page_size=page_size, config_file=config_file, field_file=field_file)
+    #FIX_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, key_field=key_field, page_token=None, page_size=page_size, config_file=config_file, field_file=field_file)
 
-    ENABLE_UPDATE_RECORDS = True
+    ENABLE_UPDATE_RECORDS = False
 
     if ENABLE_UPDATE_RECORDS:
         if field_file is None:
