@@ -66,6 +66,10 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     batch_size = 450  # 每次发送的记录数量
     batch_records = []  # 空的 batch_records 列表
 
+    print("尝试创建不存在的字段...")
+    api.CHECK_FIELD_EXIST_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=None, page_size=page_size, config_file=config_file)
+    print("修复完成...")
+
     for i in range(0, len(records), batch_size):
         current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
         batch_start = i + 1
