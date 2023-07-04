@@ -88,12 +88,17 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
                 # 查找飞书表格中的对应记录
                 feishu_record = next((item for item in feishu_records['data']['items'] if item['fields'].get(key_field) == record.get(key_field)), None)
 
-                # 如果飞书表格中没有这条记录，或者记录的内容有差异，就将这条记录添加到更新列表中
-                if feishu_record is None or feishu_record['fields'] != record:
-                    record_id = feishu_record['record_id'] if feishu_record else None
-                    # 只包含数据库和飞书表格中共同存在的字段
-                    update_fields = {field: record[field] for field in record if field in feishu_record['fields']}
-                    batch_request_body['records'].append({'fields': update_fields, 'record_id': record_id})
+                if feishu_record is None:
+                    # 如果飞书表格中没有这条记录，就添加整条记录
+                    #batch_request_body['records'].append({'fields': record, 'record_id': None})
+                    continue
+                else:
+                    # 只比较数据库和飞书表格中共同存在的字段的值
+                    common_fields = set(record.keys()) & set(feishu_record['fields'].keys())
+                    if any(record[field] != feishu_record['fields'][field] for field in common_fields):
+                        # 如果有任何一个共同存在的字段的值不匹配，就添加这条记录
+                        batch_request_body['records'].append({'fields': record, 'record_id': feishu_record['record_id']})
+
             
             batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
             # 如果没有需要更新的记录，就跳过这个批次
