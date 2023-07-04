@@ -94,11 +94,16 @@ def UPDATE_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_
                     # 只包含数据库和飞书表格中共同存在的字段
                     update_fields = {field: record[field] for field in record if field in feishu_record['fields']}
                     batch_request_body['records'].append({'fields': update_fields, 'record_id': record_id})
-
+            
             batch_records.extend(batch_request_body['records'])  # 将当前批次的记录添加到 batch_records
-
             # 如果没有需要更新的记录，就跳过这个批次
             if not batch_request_body['records']:
+                print(f"No updates needed for records {batch_start} to {batch_end}. Skipping this batch.")
+                continue
+
+            # 如果没有需要更新的记录，就跳过发送更新请求的步骤
+            if not batch_records:
+                print("No records to update. Skipping update request.")
                 continue
 
             # 构建请求URL
