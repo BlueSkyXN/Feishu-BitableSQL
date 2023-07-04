@@ -76,11 +76,11 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
     while True:
         feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
         #print(feishu_records)
-        if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
-            print("No records retrieved from Feishu table. Adding records from SQL...")
-            ADD_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file, field_file=field_file)
-            print("Records added. Retrying...")
-            feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
+        #if feishu_records is None or feishu_records.get('data') is None or feishu_records['data'].get('items') is None:
+            #print("No records retrieved from Feishu table. Adding records from SQL...")
+            #ADD_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file, field_file=field_file)
+            #print("Records added. Retrying...")
+            #feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=batch_size, config_file=config_file)
 
         page_token = feishu_records.get('data', {}).get('page_token')
 
@@ -88,7 +88,7 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
             current_batch_records = records[i:i+batch_size]  # 获取当前批次的记录
             batch_start = i + 1
             batch_end = min(i + batch_size, len(records))
-            print(f"Processing records {batch_start} to {batch_end}...")
+            #print(f"Processing records {batch_start} to {batch_end}...")
 
             # 对于每个批次，都应该重构请求体
             batch_request_body = {'records': []}
@@ -109,6 +109,7 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
                 print(f"No new records for {batch_start} to {batch_end}. Skipping this batch.")
                 continue
 
+            print(f"Processing records {batch_start} to {batch_end}...")
             # 构建请求URL
             url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create"
             print(f"URL set to: {url}")
