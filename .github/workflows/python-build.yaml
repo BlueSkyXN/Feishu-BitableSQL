@@ -41,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install pyinstaller FeishuBitableAPI pymysql pandas json configparser requests --ignore-installed
+          python -m pip install pyinstaller FeishuBitableAPI pymysql pandas configparser requests --ignore-installed
           
       - name: Build executable
         run: |
