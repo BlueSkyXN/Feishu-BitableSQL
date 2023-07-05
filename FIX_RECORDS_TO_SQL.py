@@ -30,7 +30,7 @@ def fetch_common_fields(config, feishu_data):
 
     return common_fields, mydb, mycursor
 
-def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
+def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=None):
     if config is None:
         config = 'feishu-config.ini'
     if field_file is None:
@@ -118,7 +118,8 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
     common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
     print("Common Fields:", common_fields)
 
-    check_and_update(config, common_fields, feishu_data, mydb, mycursor)
+    check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
+    # 更新函数调用，传递field_file参数
 
 
 
