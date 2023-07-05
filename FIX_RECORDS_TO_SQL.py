@@ -48,6 +48,7 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     columns = [desc[0] for desc in mycursor.description]
 
     keys_to_upload = []  # 存储需要上传的记录的键（KEY）
+    keys_to_update = []  # 存储需要更新的记录的键（KEY）
 
     for record in feishu_data:
         sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
@@ -57,18 +58,39 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
 
         if not result:  # if key does not exist in database
             keys_to_upload.append(record['fields'][key])
+        else:  # if key exists in database
+            db_values = dict(zip(columns, result[0]))  # 转换为字典类型
+            for field in common_fields:
+                if record['fields'].get(field) != db_values.get(field):
+                    keys_to_update.append(record['fields'][key])
+                    break
 
     print("Keys to upload:", keys_to_upload)
+    print("Keys to update:", keys_to_update)
 
     for key_to_upload in keys_to_upload:
         for record in feishu_data:
             if record['fields'][key] == key_to_upload:
-                print("Inserting record:", record)
+                #print("Inserting record:", record)
+                print("Updating record with ID:", record['fields'][key])
                 insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
                 insert_val = tuple(record['fields'].get(field) for field in common_fields)
                 mycursor.execute(insert_sql, insert_val)
 
+    for key_to_update in keys_to_update:
+        for record in feishu_data:
+            if record['fields'][key] == key_to_update:
+                #print("Updating record:", record)
+                print("Updating record with ID:", record['fields'][key])
+                for field in common_fields:
+                    if record['fields'].get(field) != db_values.get(field):
+                        update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
+                        update_val = (record['fields'].get(field), record['fields'][key])
+                        mycursor.execute(update_sql, update_val)
+                        break
+
     mydb.commit()
+
 
 
 def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
