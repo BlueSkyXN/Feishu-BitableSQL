@@ -36,21 +36,35 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     if field_file is None:
         field_file = 'feishu-field.ini'
     key = config.get('DB_BAK', 'KEY')
+    
+    mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
+    db_fields = [field[0] for field in mycursor.fetchall()]
+    #print("Database Fields:", db_fields)
+
+    common_fields = set(common_fields).intersection(db_fields)
+    #print("Common Fields:", common_fields)
+
+    # 获取查询结果的字段列表
+    columns = [desc[0] for desc in mycursor.description]
+
     for record in feishu_data:
         sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
         val = (record['fields'][key], )
         mycursor.execute(sql, val)
         result = mycursor.fetchall()
 
-        print("Record:", record)  # 打印当前处理的记录
-        print("Result:", result)  # 打印数据库查询结果
+        #print("Record:", record)  # 打印当前处理的记录
+        #print("Result:", result)  # 打印数据库查询结果
 
         if result:  # if key exists in database
             for field in common_fields:
-                print("Field:", field)  # 打印当前处理的字段
-                print("Feishu Value:", record['fields'].get(field))  # 打印飞书字段值
-                print("DB Value:", result[0][field])  # 打印数据库字段值
-                if record['fields'].get(field) != result[0][field]:
+                #print("Field:", field)  # 打印当前处理的字段
+                #print("Feishu Value:", record['fields'].get(field))  # 打印飞书字段值
+                
+                db_values = dict(zip(columns, result[0]))  # 转换为字典类型
+                #print("DB Value:", db_values.get(field))  # 打印数据库字段值
+
+                if record['fields'].get(field) != db_values.get(field):
                     update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
                     update_val = (record['fields'].get(field), record['fields'][key])
                     mycursor.execute(update_sql, update_val)
@@ -60,6 +74,7 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
             mycursor.execute(insert_sql, insert_val)
 
         mydb.commit()
+
 
 
 
