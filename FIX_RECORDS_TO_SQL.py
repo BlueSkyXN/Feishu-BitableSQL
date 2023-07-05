@@ -36,7 +36,7 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     if field_file is None:
         field_file = 'feishu-field.ini'
     key = config.get('DB_BAK', 'KEY')
-    
+
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
     db_fields = [field[0] for field in mycursor.fetchall()]
     print("Database Fields:", db_fields)
@@ -52,7 +52,7 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
 
     for record in feishu_data:
         sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
-        val = (record['fields'][key], )
+        val = (record['fields'][key],)
         mycursor.execute(sql, val)
         result = mycursor.fetchall()
 
@@ -60,10 +60,17 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
             keys_to_upload.append(record['fields'][key])
         else:  # if key exists in database
             db_values = dict(zip(columns, result[0]))  # 转换为字典类型
+            feishu_values = record['fields']  # 飞书记录的字段值
+
+            has_difference = False  # 标记是否存在差异
+
             for field in common_fields:
-                if record['fields'].get(field) != db_values.get(field):
-                    keys_to_update.append(record['fields'][key])
+                if feishu_values.get(field) != db_values.get(field):
+                    has_difference = True
                     break
+
+            if has_difference:
+                keys_to_update.append(record['fields'][key])
 
     print("Keys to upload:", keys_to_upload)
     print("Keys to update:", keys_to_update)
@@ -71,7 +78,6 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     for key_to_upload in keys_to_upload:
         for record in feishu_data:
             if record['fields'][key] == key_to_upload:
-                #print("Inserting record:", record)
                 print("Updating record with ID:", record['fields'][key])
                 insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
                 insert_val = tuple(record['fields'].get(field) for field in common_fields)
@@ -80,7 +86,6 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     for key_to_update in keys_to_update:
         for record in feishu_data:
             if record['fields'][key] == key_to_update:
-                #print("Updating record:", record)
                 print("Updating record with ID:", record['fields'][key])
                 for field in common_fields:
                     if record['fields'].get(field) != db_values.get(field):
@@ -90,6 +95,7 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
                         break
 
     mydb.commit()
+
 
 
 
