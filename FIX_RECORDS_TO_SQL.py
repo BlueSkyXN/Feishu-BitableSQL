@@ -47,36 +47,25 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     # 获取查询结果的字段列表
     columns = [desc[0] for desc in mycursor.description]
 
+    keys_to_upload = []  # 存储需要上传的记录的键（KEY）
+
     for record in feishu_data:
         sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
         val = (record['fields'][key], )
         mycursor.execute(sql, val)
         result = mycursor.fetchall()
 
-        #print("Record:", record)  # 打印当前处理的记录
-        #print("Result:", result)  # 打印数据库查询结果
+        if not result:  # if key does not exist in database
+            keys_to_upload.append(record['fields'][key])
 
-        if result:  # if key exists in database
-            for field in common_fields:
-                #print("Field:", field)  # 打印当前处理的字段
-                #print("Feishu Value:", record['fields'].get(field))  # 打印飞书字段值
-                
-                db_values = dict(zip(columns, result[0]))  # 转换为字典类型
-                #print("DB Value:", db_values.get(field))  # 打印数据库字段值
+    for key_to_upload in keys_to_upload:
+        for record in feishu_data:
+            if record['fields'][key] == key_to_upload:
+                insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
+                insert_val = tuple(record['fields'].get(field) for field in common_fields)
+                mycursor.execute(insert_sql, insert_val)
 
-                if record['fields'].get(field) != db_values.get(field):
-                    update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
-                    update_val = (record['fields'].get(field), record['fields'][key])
-                    mycursor.execute(update_sql, update_val)
-        else:  # if key does not exist in database
-            insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
-            insert_val = tuple(record['fields'].get(field) for field in common_fields)
-            mycursor.execute(insert_sql, insert_val)
-
-        mydb.commit()
-
-
-
+    mydb.commit()
 
 def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
@@ -135,8 +124,6 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
 
     check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
     # 更新函数调用，传递field_file参数
-
-
 
 if __name__ == "__main__":
     FIX_RECORDS_TO_SQL()
