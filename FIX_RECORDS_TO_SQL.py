@@ -1,8 +1,6 @@
 from FeishuBitableAPI import FeishuBitableAPI
 import configparser
 import mysql.connector
-from FeishuBitableAPI import LIST_RECORDS
-
 
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
@@ -24,7 +22,7 @@ def fetch_common_fields(config, feishu_data):
     return common_fields, mydb, mycursor
 
 
-def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
+#def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
     key = config.get('DB_BAK', 'KEY')
     for record in feishu_data:
         sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
@@ -45,6 +43,34 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
 
         mydb.commit()
 
+def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
+    key = config.get('DB_BAK', 'KEY')
+    for record in feishu_data:
+        sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
+        val = (record['fields'][key], )
+        mycursor.execute(sql, val)
+        result = mycursor.fetchall()
+
+        print("Record:", record)  # 打印当前处理的记录
+        print("Result:", result)  # 打印数据库查询结果
+
+        if result:  # if key exists in database
+            for field in common_fields:
+                print("Field:", field)  # 打印当前处理的字段
+                print("Feishu Value:", record['fields'].get(field))  # 打印飞书字段值
+                print("DB Value:", result[0][field])  # 打印数据库字段值
+                if record['fields'].get(field) != result[0][field]:
+                    update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
+                    update_val = (record['fields'].get(field), record['fields'][key])
+                    mycursor.execute(update_sql, update_val)
+        else:  # if key does not exist in database
+            insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
+            insert_val = tuple(record['fields'].get(field) for field in common_fields)
+            mycursor.execute(insert_sql, insert_val)
+
+        mydb.commit()
+
+
 
 def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
@@ -64,18 +90,17 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         app_token = config.get('TOKEN', 'app_token')
     if table_id is None:
         table_id = config.get('ID', 'table_id')
-    if view_id is None:
-        view_id = config.get('ID', 'view_id')
+
     if not page_token:
         page_token = config.get('ADD_RECORDS', 'page_token', fallback=None)
     if not page_size:
         page_size = config.get('ADD_RECORDS', 'page_size', fallback=500)
 
     feishu_data = []
-    response = LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
+    response = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
     feishu_data.extend(response['data']['items'])
     while response['data']['has_more']:
-        response = LIST_RECORDS(page_token=response['data']['page_token'], config_file=config_file)
+        response = api.LIST_RECORDS(page_token=response['data']['page_token'], config_file=config_file)
         feishu_data.extend(response['data']['items'])
 
     common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
