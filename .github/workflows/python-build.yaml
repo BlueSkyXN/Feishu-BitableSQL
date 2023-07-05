@@ -203,11 +203,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install pyinstaller FeishuBitableAPI mysql-connector-python configparser --ignore-installed
+          python -m pip install pyinstaller FeishuBitableAPI mysql-connector-python configparser pymysql --ignore-installed
           
       - name: Build executable
         run: |
-          pyinstaller --onefile --hidden-import FeishuBitableAPI --hidden-import configparser --hidden-import mysql.connector FIX_RECORDS_TO_SQL.py --distpath dist/${{ matrix.os }}
+          pyinstaller --onefile --hidden-import FeishuBitableAPI --hidden-import configparser --hidden-import pymysql --hidden-import mysql.connector FIX_RECORDS_TO_SQL.py --distpath dist/${{ matrix.os }}
 
       - name: Upload-ubuntu-20.04
         if: ${{ matrix.os == 'ubuntu-20.04' }}
