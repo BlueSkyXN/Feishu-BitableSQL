@@ -1,12 +1,50 @@
-import requests
-import configparser 
-import json
-import pandas as pd
-import pymysql
 from FeishuBitableAPI import FeishuBitableAPI
+import configparser
+import mysql.connector
+from FeishuBitableAPI import LIST_RECORDS
+
 
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
+
+def fetch_common_fields(config, feishu_data):
+    feishu_fields = set(feishu_data[0]['fields'].keys())
+    mydb = mysql.connector.connect(
+        host=config.get('DB_BAK', 'host'),
+        user=config.get('DB_BAK', 'user'),
+        password=config.get('DB_BAK', 'password'),
+        database=config.get('DB_BAK', 'database'),
+        port=config.get('DB_BAK', 'port'),
+    )
+    mycursor = mydb.cursor()
+    mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
+    db_fields = set([field[0] for field in mycursor.fetchall()])
+    common_fields = feishu_fields.intersection(db_fields)
+
+    return common_fields, mydb, mycursor
+
+
+def check_and_update(config, common_fields, feishu_data, mydb, mycursor):
+    key = config.get('DB_BAK', 'KEY')
+    for record in feishu_data:
+        sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
+        val = (record['fields'][key], )
+        mycursor.execute(sql, val)
+        result = mycursor.fetchall()
+
+        if result:  # if key exists in database
+            for field in common_fields:
+                if record['fields'].get(field) != result[0][field]:
+                    update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
+                    update_val = (record['fields'].get(field), record['fields'][key])
+                    mycursor.execute(update_sql, update_val)
+        else:  # if key does not exist in database
+            insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
+            insert_val = tuple(record['fields'].get(field) for field in common_fields)
+            mycursor.execute(insert_sql, insert_val)
+
+        mydb.commit()
+
 
 def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
@@ -26,62 +64,23 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         app_token = config.get('TOKEN', 'app_token')
     if table_id is None:
         table_id = config.get('ID', 'table_id')
+    if view_id is None:
+        view_id = config.get('ID', 'view_id')
     if not page_token:
-        page_token = config.get('UPDATE_RECORDS', 'page_token', fallback=None)
+        page_token = config.get('ADD_RECORDS', 'page_token', fallback=None)
     if not page_size:
-        page_size = config.get('UPDATE_RECORDS', 'page_size', fallback=100)
-    if not key_field:
-        key_field = config.get('UPDATE_RECORDS', 'KEY', fallback='ID')
+        page_size = config.get('ADD_RECORDS', 'page_size', fallback=500)
 
-    # 从配置文件中读取数据库信息和SQL查询
-    db_info = {
-        'host': config.get('DB', 'host'),
-        'user': config.get('DB', 'user'),
-        'password': config.get('DB', 'password'),
-        'database': config.get('DB', 'database'),
-        'port': config.getint('DB', 'port')
-    }
+    feishu_data = []
+    response = LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
+    feishu_data.extend(response['data']['items'])
+    while response['data']['has_more']:
+        response = LIST_RECORDS(page_token=response['data']['page_token'], config_file=config_file)
+        feishu_data.extend(response['data']['items'])
 
-    # 连接到数据库
-    conn = pymysql.connect(**db_info)
-    cursor = conn.cursor()
+    common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
+    check_and_update(config, common_fields, feishu_data, mydb, mycursor)
 
-    # 获取数据表的所有字段
-    fields = pd.read_sql('DESC wp_posts', conn)
-    fields = list(fields['Field'])
-
-    # 获取飞书表格中的所有记录
-    feishu_records_dict = {}
-    page_token = None
-    while True:
-        feishu_records = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
-        page_token = feishu_records.get('data', {}).get('page_token')
-        for item in feishu_records['data']['items']:
-            feishu_records_dict[item['fields'].get(key_field)] = item['fields']
-        if not feishu_records.get('data', {}).get('has_more'):
-            break
-
-    # 检查飞书中的记录是否在数据库中存在,如果不存在,就将这些记录添加到数据库中
-    for key, value in feishu_records_dict.items():
-        sql_query = f"SELECT * FROM wp_posts WHERE {key_field} = '{key}'"
-        cursor.execute(sql_query)
-        result = cursor.fetchone()
-        if result is None:
-            # 如果数据库中没有这条记录,就添加整条记录
-            # 注意:这里假设你的表格有一个名为 'field1' 的字段,你需要根据你的实际情况修改这个字段名
-            values = []
-            for field in fields: 
-                if field in value:
-                    values.append(f"'{value[field]}'")
-                else:
-                    values.append('NULL')
-            sql_insert = f"INSERT INTO wp_posts ({', '.join(fields)}) VALUES ({', '.join(values)})"
-            cursor.execute(sql_insert)
-            conn.commit()
-
-    # 关闭数据库连接
-    cursor.close()
-    conn.close()
 
 if __name__ == "__main__":
     FIX_RECORDS_TO_SQL()
