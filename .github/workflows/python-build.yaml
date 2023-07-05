@@ -45,7 +45,7 @@ jobs:
           
       - name: Build executable
         run: |
-          pyinstaller --onefile --hidden-import FeishuBitableAPI pymysql pandas json configparser requests --strip ADD_RECORDS_FROM_SQL.py --distpath dist/${{ matrix.os }}
+          pyinstaller --onefile --hidden-import FeishuBitableAPI pymysql pandas json configparser requests  ADD_RECORDS_FROM_SQL.py --distpath dist/${{ matrix.os }}
 
       
       - name: Upload-ubuntu-20.04
