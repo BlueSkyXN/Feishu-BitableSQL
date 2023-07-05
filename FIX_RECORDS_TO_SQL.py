@@ -39,10 +39,10 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
     
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
     db_fields = [field[0] for field in mycursor.fetchall()]
-    #print("Database Fields:", db_fields)
+    print("Database Fields:", db_fields)
 
     common_fields = set(common_fields).intersection(db_fields)
-    #print("Common Fields:", common_fields)
+    print("Common Fields:", common_fields)
 
     # 获取查询结果的字段列表
     columns = [desc[0] for desc in mycursor.description]
@@ -58,14 +58,18 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
         if not result:  # if key does not exist in database
             keys_to_upload.append(record['fields'][key])
 
+    print("Keys to upload:", keys_to_upload)
+
     for key_to_upload in keys_to_upload:
         for record in feishu_data:
             if record['fields'][key] == key_to_upload:
+                print("Inserting record:", record)
                 insert_sql = f"INSERT INTO {config.get('DB_BAK', 'table')} ({', '.join(common_fields)}) VALUES ({', '.join(['%s']*len(common_fields))})"
                 insert_val = tuple(record['fields'].get(field) for field in common_fields)
                 mycursor.execute(insert_sql, insert_val)
 
     mydb.commit()
+
 
 def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
