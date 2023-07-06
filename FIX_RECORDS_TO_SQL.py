@@ -5,26 +5,10 @@ import mysql.connector
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def fetch_common_fields(config_file=None, feishu_data=None):
-    if config_file is None:
-        config_file = 'feishu-config.ini'
-
-    # 读取配置文件
-    config = configparser.ConfigParser()
-    config.read(config_file, encoding='utf-8')
-
-    # 检查是否启用字段映射功能
-    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
-
-    # 读取飞书字段映射关系（如果启用）
-    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
-
-    # 如果启用字段映射功能，则获取飞书表格的字段名，并进行中英文转换
-    if enable_field_mapping:
-        feishu_fields = set([feishu_field_mapping.get(field, field) for field in feishu_data[0]['fields'].keys()])
-    else:
-        feishu_fields = set(feishu_data[0]['fields'].keys())
-
+def fetch_common_fields(config, feishu_data):
+    if config is None:
+        config = 'feishu-config.ini'
+    feishu_fields = set(feishu_data[0]['fields'].keys())
     print("Feishu Fields:", feishu_fields)
 
     mydb = mysql.connector.connect(
@@ -32,7 +16,7 @@ def fetch_common_fields(config_file=None, feishu_data=None):
         user=config.get('DB_BAK', 'user'),
         password=config.get('DB_BAK', 'password'),
         database=config.get('DB_BAK', 'database'),
-        port=config.getint('DB_BAK', 'port'),
+        port=config.get('DB_BAK', 'port'),
     )
     print("Connected to MySQL database")
 
@@ -46,34 +30,15 @@ def fetch_common_fields(config_file=None, feishu_data=None):
 
     return common_fields, mydb, mycursor
 
-
-def check_and_update(config_file=None, common_fields=None, feishu_data=None, mydb=None, mycursor=None, field_file=None):
-    if config_file is None:
-        config_file = 'feishu-config.ini'
+def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=None):
+    if config is None:
+        config = 'feishu-config.ini'
     if field_file is None:
         field_file = 'feishu-field.ini'
-
-    # 读取配置文件
-    config = configparser.ConfigParser()
-    config.read(config_file, encoding='utf-8')
-
     key = config.get('DB_BAK', 'KEY')
 
-    # 检查是否启用字段映射功能
-    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
-
-    # 读取飞书字段映射关系（如果启用）
-    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
-
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
-
     db_fields = [field[0] for field in mycursor.fetchall()]
-
-    if enable_field_mapping:
-        db_fields = [feishu_field_mapping.get(field, field) for field in db_fields]
-    else:
-        db_fields = list(db_fields)
-
     #print("Database Fields:", db_fields)
 
     common_fields = set(common_fields).intersection(db_fields)
@@ -122,12 +87,6 @@ def check_and_update(config_file=None, common_fields=None, feishu_data=None, myd
         for record in feishu_data:
             if record['fields'][key] == key_to_update:
                 #print("Updating record with ID:", record['fields'][key])
-                sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
-                val = (record['fields'][key],)
-                mycursor.execute(sql, val)
-                result = mycursor.fetchall()
-                db_values = dict(zip(columns, result[0]))  # 转换为字典类型
-
                 for field in common_fields:
                     if record['fields'].get(field) != db_values.get(field):
                         update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
@@ -136,6 +95,7 @@ def check_and_update(config_file=None, common_fields=None, feishu_data=None, myd
                         break
 
     mydb.commit()
+
 
 
 
@@ -180,12 +140,6 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         print("Page Size (from config file):", page_size)
     else:
         print("Page Size (from input):", page_size)
-    
-    # 检查是否启用字段映射功能
-    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
-
-    # 读取飞书字段映射关系（如果启用）
-    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
 
     feishu_data = []
     response = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
@@ -197,10 +151,10 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         feishu_data.extend(response['data']['items'])
         print("Fetched more records. Total records:", len(feishu_data))
 
-    common_fields, mydb, mycursor = fetch_common_fields(config_file, feishu_data)
+    common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
     print("Common Fields:", common_fields)
 
-    check_and_update(config_file, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
+    check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
     # 更新函数调用，传递field_file参数
 
 if __name__ == "__main__":
