@@ -7,9 +7,15 @@ api = FeishuBitableAPI()
 
 
 
-def fetch_common_fields(config, feishu_data):
-    if config is None:
-        config = 'feishu-config.ini'
+def fetch_common_fields(config_file=None, feishu_data=None):
+
+    if config_file is None:
+        config_file = 'feishu-config.ini'
+
+    # 读取配置文件
+    config = configparser.ConfigParser()
+    config.read(config_file, encoding='utf-8')
+
     # 检查是否启用字段映射功能
     enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
 
@@ -45,11 +51,15 @@ def fetch_common_fields(config, feishu_data):
 
     return common_fields, mydb, mycursor
 
-def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=None):
-    if config is None:
-        config = 'feishu-config.ini'
+def check_and_update(config_file=None, common_fields=None, feishu_data=None, mydb=None, mycursor=None, field_file=None):
+    if config_file is None:
+        config_file = 'feishu-config.ini'
     if field_file is None:
         field_file = 'feishu-field.ini'
+
+    # 读取配置文件
+    config = configparser.ConfigParser()
+    config.read(config_file, encoding='utf-8')
 
     key = config.get('DB_BAK', 'KEY')
 
@@ -61,13 +71,15 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
 
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
 
+    db_fields = [field[0] for field in mycursor.fetchall()]
+
     if enable_field_mapping:
         db_fields = [feishu_field_mapping.get(field, field) for field in db_fields]
     else:
         db_fields = list(db_fields)
 
     #db_fields = [field[0] for field in mycursor.fetchall()]
-    
+
     #print("Database Fields:", db_fields)
 
     common_fields = set(common_fields).intersection(db_fields)
@@ -186,10 +198,10 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         feishu_data.extend(response['data']['items'])
         print("Fetched more records. Total records:", len(feishu_data))
 
-    common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
+    common_fields, mydb, mycursor = fetch_common_fields(config_file, feishu_data)
     print("Common Fields:", common_fields)
 
-    check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
+    check_and_update(config_file, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
     # 更新函数调用，传递field_file参数
 
 if __name__ == "__main__":
