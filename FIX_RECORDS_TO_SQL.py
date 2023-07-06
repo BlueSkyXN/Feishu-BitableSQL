@@ -5,10 +5,25 @@ import mysql.connector
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
+
+
 def fetch_common_fields(config, feishu_data):
     if config is None:
         config = 'feishu-config.ini'
-    feishu_fields = set(feishu_data[0]['fields'].keys())
+    # 检查是否启用字段映射功能
+    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
+
+    # 读取飞书字段映射关系（如果启用）
+    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
+
+    # 如果启用字段映射功能，则获取飞书表格的字段名，并进行中英文转换
+    if enable_field_mapping:
+        feishu_fields = set([feishu_field_mapping.get(field, field) for field in feishu_data[0]['fields'].keys()])
+    else:
+        feishu_fields = set(feishu_data[0]['fields'].keys())
+
+    #feishu_fields = set(feishu_data[0]['fields'].keys())
+
     print("Feishu Fields:", feishu_fields)
 
     mydb = mysql.connector.connect(
@@ -35,10 +50,24 @@ def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_f
         config = 'feishu-config.ini'
     if field_file is None:
         field_file = 'feishu-field.ini'
+
     key = config.get('DB_BAK', 'KEY')
 
+    # 检查是否启用字段映射功能
+    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
+
+    # 读取飞书字段映射关系（如果启用）
+    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
+
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
-    db_fields = [field[0] for field in mycursor.fetchall()]
+
+    if enable_field_mapping:
+        db_fields = [feishu_field_mapping.get(field, field) for field in db_fields]
+    else:
+        db_fields = list(db_fields)
+
+    #db_fields = [field[0] for field in mycursor.fetchall()]
+    
     #print("Database Fields:", db_fields)
 
     common_fields = set(common_fields).intersection(db_fields)
@@ -140,6 +169,12 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         print("Page Size (from config file):", page_size)
     else:
         print("Page Size (from input):", page_size)
+    
+    # 检查是否启用字段映射功能
+    enable_field_mapping = config.getboolean('FEISHU_FIELD_MAPPING', 'ENABLE_FIELD_MAPPING')
+
+    # 读取飞书字段映射关系（如果启用）
+    feishu_field_mapping = dict(config.items('FEISHU_FIELD_MAPPING')) if enable_field_mapping else {}
 
     feishu_data = []
     response = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
