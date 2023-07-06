@@ -5,10 +5,7 @@ import mysql.connector
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-
-
 def fetch_common_fields(config_file=None, feishu_data=None):
-
     if config_file is None:
         config_file = 'feishu-config.ini'
 
@@ -28,8 +25,6 @@ def fetch_common_fields(config_file=None, feishu_data=None):
     else:
         feishu_fields = set(feishu_data[0]['fields'].keys())
 
-    #feishu_fields = set(feishu_data[0]['fields'].keys())
-
     print("Feishu Fields:", feishu_fields)
 
     mydb = mysql.connector.connect(
@@ -37,7 +32,7 @@ def fetch_common_fields(config_file=None, feishu_data=None):
         user=config.get('DB_BAK', 'user'),
         password=config.get('DB_BAK', 'password'),
         database=config.get('DB_BAK', 'database'),
-        port=config.get('DB_BAK', 'port'),
+        port=config.getint('DB_BAK', 'port'),
     )
     print("Connected to MySQL database")
 
@@ -50,6 +45,7 @@ def fetch_common_fields(config_file=None, feishu_data=None):
     #print("Common Fields:", common_fields)
 
     return common_fields, mydb, mycursor
+
 
 def check_and_update(config_file=None, common_fields=None, feishu_data=None, mydb=None, mycursor=None, field_file=None):
     if config_file is None:
@@ -77,8 +73,6 @@ def check_and_update(config_file=None, common_fields=None, feishu_data=None, myd
         db_fields = [feishu_field_mapping.get(field, field) for field in db_fields]
     else:
         db_fields = list(db_fields)
-
-    #db_fields = [field[0] for field in mycursor.fetchall()]
 
     #print("Database Fields:", db_fields)
 
@@ -128,6 +122,12 @@ def check_and_update(config_file=None, common_fields=None, feishu_data=None, myd
         for record in feishu_data:
             if record['fields'][key] == key_to_update:
                 #print("Updating record with ID:", record['fields'][key])
+                sql = f"SELECT * FROM {config.get('DB_BAK', 'table')} WHERE {key} = %s"
+                val = (record['fields'][key],)
+                mycursor.execute(sql, val)
+                result = mycursor.fetchall()
+                db_values = dict(zip(columns, result[0]))  # 转换为字典类型
+
                 for field in common_fields:
                     if record['fields'].get(field) != db_values.get(field):
                         update_sql = f"UPDATE {config.get('DB_BAK', 'table')} SET {field} = %s WHERE {key} = %s"
@@ -136,7 +136,6 @@ def check_and_update(config_file=None, common_fields=None, feishu_data=None, myd
                         break
 
     mydb.commit()
-
 
 
 
