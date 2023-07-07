@@ -141,9 +141,6 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
     else:
         print("Page Size (from input):", page_size)
 
-    #把源表的字段名/列名，从人读码替换为机器码
-    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
-
     feishu_data = []
     response = api.LIST_RECORDS(app_token=app_token, table_id=table_id, page_token=page_token, page_size=page_size, config_file=config_file)
     feishu_data.extend(response['data']['items'])
@@ -159,10 +156,6 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
 
     check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
     # 更新函数调用，传递field_file参数
-
-    #逆向(把源表的字段名/列名，从人读码替换为机器码)
-    api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
-
 
 if __name__ == "__main__":
     FIX_RECORDS_TO_SQL()
