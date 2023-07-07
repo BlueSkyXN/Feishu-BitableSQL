@@ -5,10 +5,11 @@ import mysql.connector
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def fetch_common_fields(config, feishu_data):
+def fetch_common_fields(config=config, feishu_data=feishu_data):
     if config is None:
         config = 'feishu-config.ini'
     feishu_fields = set(feishu_data[0]['fields'].keys())
+
     print("Feishu Fields:", feishu_fields)
 
     mydb = mysql.connector.connect(
@@ -30,12 +31,16 @@ def fetch_common_fields(config, feishu_data):
 
     return common_fields, mydb, mycursor
 
-def check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=None):
+def check_and_update(config=None, common_fields=None, feishu_data=None, mydb=None, mycursor=None, field_file=None, key_field=None):
     if config is None:
         config = 'feishu-config.ini'
     if field_file is None:
         field_file = 'feishu-field.ini'
-    key = config.get('DB_BAK', 'KEY')
+
+    if key_field is None:
+        key_field = config.get('DB_BAK', 'KEY')
+
+    key = key_field
 
     mycursor.execute(f"SHOW COLUMNS FROM {config.get('DB_BAK', 'table')}")
     db_fields = [field[0] for field in mycursor.fetchall()]
@@ -154,13 +159,13 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
         feishu_data.extend(response['data']['items'])
         print("Fetched more records. Total records:", len(feishu_data))
 
-    common_fields, mydb, mycursor = fetch_common_fields(config, feishu_data)
+    common_fields, mydb, mycursor = fetch_common_fields(config=config, feishu_data=feishu_data)
     print("Common Fields:", common_fields)
 
-    check_and_update(config, common_fields, feishu_data, mydb, mycursor, field_file=field_file)  
+    check_and_update(config=config, common_fields=common_fields, feishu_data=feishu_data, mydb=mydb, mycursor=mycursor, field_file=field_file, key_field=key_field)  
     # 更新函数调用，传递field_file参数
 
-    #逆向(把源表的字段名/列名，从人读码替换为机器码)
+    #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
     api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
 
 

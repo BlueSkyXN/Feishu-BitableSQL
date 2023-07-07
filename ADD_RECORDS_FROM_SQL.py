@@ -33,6 +33,10 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
     if not page_size:
         page_size = config.get('ADD_RECORDS', 'page_size', fallback=100)
 
+    #把源表的字段名/列名，从人读码替换为机器码
+    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
+
+
     # 从配置文件中读取数据库信息和SQL查询
     db_info = {
         'host': config.get('DB', 'host'),
