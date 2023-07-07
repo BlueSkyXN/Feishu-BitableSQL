@@ -122,6 +122,10 @@ def ADD_RECORDS_FROM_SQL(app_token=None, table_id=None, view_id=None, page_token
             print(f"Error in creating table records. Response status code: {response.status_code}")
             response.raise_for_status()
 
+    #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
+    api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=view_id, page_token=page_token, page_size=page_size, config_file=config_file)
+
+
     ENABLE_ADD_RECORDS = False
     
     if ENABLE_ADD_RECORDS:

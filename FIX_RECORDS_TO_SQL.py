@@ -5,7 +5,7 @@ import mysql.connector
 # 创建 FeishuBitableAPI 类的实例
 api = FeishuBitableAPI()
 
-def fetch_common_fields(config=config, feishu_data=feishu_data):
+def fetch_common_fields(config=None, feishu_data=None):
     if config is None:
         config = 'feishu-config.ini'
     feishu_fields = set(feishu_data[0]['fields'].keys())
@@ -37,8 +37,8 @@ def check_and_update(config=None, common_fields=None, feishu_data=None, mydb=Non
     if field_file is None:
         field_file = 'feishu-field.ini'
 
-    if key_field is None:
-        key_field = config.get('DB_BAK', 'KEY')
+    if not key_field:
+        key_field = config.get('DB_BAK', 'KEY', fallback='ID')
 
     key = key_field
 
@@ -112,7 +112,6 @@ def FIX_RECORDS_TO_SQL(app_token=None, table_id=None, key_field=None, page_token
 
     print("Config File:", config_file)
     print("Field File:", field_file)
-
     # 读取配置文件
     config = configparser.ConfigParser()
     config.read(config_file, encoding='utf-8')

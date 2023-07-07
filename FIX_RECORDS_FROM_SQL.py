@@ -185,6 +185,10 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
     if not key_field:
         key_field = config.get('UPDATE_RECORDS', 'KEY', fallback='ID')
 
+    #把源表的字段名/列名，从人读码替换为机器码
+    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+
+
     # 从配置文件中读取数据库信息和SQL查询
     db_info = {
         'host': config.get('DB', 'host'),
@@ -288,6 +292,10 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
         else:
             print(f"Error in adding new records. Response status code: {response.status_code}")
             response.raise_for_status()
+    
+    #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
+    api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+
 
     ENABLE_UPDATE_RECORDS = False
 
