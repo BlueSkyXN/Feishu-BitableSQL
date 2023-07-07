@@ -159,7 +159,6 @@ def FIX_RECORDS_FROM_SQL_V1(app_token=None, table_id=None, key_field=None, page_
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
 
-
 def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_token=None, page_size=None, config_file=None, field_file=None):
     if config_file is None:
         config_file = 'feishu-config.ini'
@@ -184,9 +183,6 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
         page_size = config.get('UPDATE_RECORDS', 'page_size', fallback=100)
     if not key_field:
         key_field = config.get('UPDATE_RECORDS', 'KEY', fallback='ID')
-
-    #把源表的字段名/列名，从人读码替换为机器码
-    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
 
 
     # 从配置文件中读取数据库信息和SQL查询
@@ -293,9 +289,6 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
             print(f"Error in adding new records. Response status code: {response.status_code}")
             response.raise_for_status()
     
-    #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
-    api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
-
     ENABLE_UPDATE_RECORDS = False
 
     if ENABLE_UPDATE_RECORDS:
@@ -315,5 +308,87 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
 
+def FIX_RECORDS_FROM_SQL_CMD_Default():
+    config_file = 'feishu-config.ini'
+    field_file = 'feishu-field.ini'
+
+    # 读取配置文件
+    config = configparser.ConfigParser()
+    config.read(config_file, encoding='utf-8')
+
+    # 提取tokens和app_token
+    user_access_token = config.get('TOKEN', 'user_access_token', fallback=None)
+    app_token = config.get('TOKEN', 'app_token', fallback=None)
+    table_id = config.get('ID', 'table_id', fallback=None)
+    page_token = config.get('FIX_RECORDS_FROM_SQL', 'page_token', fallback=None)
+    page_size = config.get('FIX_RECORDS_FROM_SQL', 'page_size', fallback=100)
+    key_field = config.get('FIX_RECORDS_FROM_SQL', 'KEY', fallback='ID')
+
+    # 从配置文件中读取数据库信息和SQL查询
+    db_info = {
+        'host': config.get('DB', 'host'),
+        'user': config.get('DB', 'user'),
+        'password': config.get('DB', 'password'),
+        'database': config.get('DB', 'database'),
+        'port': config.getint('DB', 'port')
+    }
+    sql_query = config.get('SQL', 'sql_query')
+
+    #把源表的字段名/列名，从人读码替换为机器码
+    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+    try:
+        FIX_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, key_field=key_field, page_token=page_token, page_size=page_size, config_file=config_file, field_file=field_file)
+    finally: 
+    #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
+        api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
+
+def FIX_RECORDS_FROM_SQL_CMD():
+    import argparse
+    # 解析命令行参数
+    parser = argparse.ArgumentParser()
+
+    # 添加参数
+    parser.add_argument('-c', '--config', default='feishu-config.ini', help='配置文件路径')
+    parser.add_argument('-f', '--field', default='feishu-field.ini', help='字段文件路径')
+    parser.add_argument('-t', '--table', required=True, help='表格ID')
+    parser.add_argument('-p', '--page', default=None, help='页面token')
+    parser.add_argument('-s', '--size', default=100, help='页面大小')
+    parser.add_argument('-k', '--key', default='ID', help='关键字段')
+
+    args = parser.parse_args()
+
+    # 读取配置文件
+    config = configparser.ConfigParser()
+    config.read(args.config, encoding='utf-8')
+
+    # 提取tokens和app_token
+    user_access_token = config.get('TOKEN', 'user_access_token', fallback=None)
+    app_token = config.get('TOKEN', 'app_token', fallback=None)
+    table_id = args.table
+    page_token = args.page
+    page_size = args.size
+    key_field = args.key
+
+    # 从配置文件中读取数据库信息和SQL查询
+    db_info = {
+        'host': config.get('DB', 'host'),
+        'user': config.get('DB', 'user'),
+        'password': config.get('DB', 'password'),
+        'database': config.get('DB', 'database'),
+        'port': config.getint('DB', 'port')
+    }
+    sql_query = config.get('SQL', 'sql_query')
+
+    # 把源表的字段名/列名，从人读码替换为机器码
+    api.CONVERSION_FIELDS_HUMAN_TO_MACHINE(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=args.config)
+
+    try:
+        FIX_RECORDS_FROM_SQL(app_token=app_token, table_id=table_id, key_field=key_field, page_token=page_token, page_size=page_size, config_file=args.config, field_file=args.field)
+    finally: 
+        # 逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
+        api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=args.config)
+
 if __name__ == "__main__":
-    FIX_RECORDS_FROM_SQL()
+    FIX_RECORDS_FROM_SQL_CMD()
+
+
