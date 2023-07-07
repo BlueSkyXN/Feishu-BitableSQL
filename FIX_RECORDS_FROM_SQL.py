@@ -296,7 +296,6 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
     #逆向(把源表的字段名/列名，从人读码替换为机器码) 的操作，把机器码字段替换成人读码
     api.CONVERSION_FIELDS_MACHINE_TO_HUMAN(app_token=app_token, table_id=table_id, view_id=None, page_token=page_token, page_size=page_size, config_file=config_file)
 
-
     ENABLE_UPDATE_RECORDS = False
 
     if ENABLE_UPDATE_RECORDS:
@@ -315,7 +314,6 @@ def FIX_RECORDS_FROM_SQL(app_token=None, table_id=None, key_field=None, page_tok
         with open('feishu-field.ini', 'w', encoding='utf-8') as field_configfile:
             field_config.write(field_configfile)
             print("Request body and response body saved to feishu-field.ini.")
-
 
 if __name__ == "__main__":
     FIX_RECORDS_FROM_SQL()
