@@ -350,7 +350,7 @@ def FIX_RECORDS_FROM_SQL_CMD():
     # 添加参数
     parser.add_argument('-c', '--config', default='feishu-config.ini', help='配置文件路径')
     parser.add_argument('-f', '--field', default='feishu-field.ini', help='字段文件路径')
-    parser.add_argument('-t', '--table', required=True, help='表格ID')
+    parser.add_argument('-t', '--table', help='表格ID')
     parser.add_argument('-p', '--page', default=None, help='页面token')
     parser.add_argument('-s', '--size', default=100, help='页面大小')
     parser.add_argument('-k', '--key', default='ID', help='关键字段')
